@@ -1,9 +1,11 @@
+Note: temporary fork until all PR's are merged into rcrowley's version.
+
 go-metrics
 ==========
 
 Go port of Coda Hale's Metrics library: <https://github.com/codahale/metrics>.
 
-Documentation: <http://godoc.org/github.com/rcrowley/go-metrics>.
+Documentation: <http://godoc.org/github.com/Dieterbe/go-metrics>.
 
 Usage
 -----
@@ -57,7 +59,7 @@ go metrics.Graphite(metrics.DefaultRegistry, 10e9, "metrics.", addr)
 Periodically emit every metric into InfluxDB:
 
 ```go
-import "github.com/rcrowley/go-metrics/influxdb"
+import "github.com/Dieterbe/go-metrics/influxdb"
 
 go influxdb.Influxdb(metrics.DefaultRegistry, 10e9, &influxdb.Config{
     Host:     "127.0.0.1:8086",
@@ -70,7 +72,7 @@ go influxdb.Influxdb(metrics.DefaultRegistry, 10e9, &influxdb.Config{
 Periodically upload every metric to Librato:
 
 ```go
-import "github.com/rcrowley/go-metrics/librato"
+import "github.com/Dieterbe/go-metrics/librato"
 
 go librato.Librato(metrics.DefaultRegistry,
     10e9,                  // interval
@@ -85,7 +87,7 @@ go librato.Librato(metrics.DefaultRegistry,
 Periodically emit every metric to StatHat:
 
 ```go
-import "github.com/rcrowley/go-metrics/stathat"
+import "github.com/Dieterbe/go-metrics/stathat"
 
 go stathat.Stathat(metrics.DefaultRegistry, 10e9, "example@example.com")
 ```
@@ -98,7 +100,7 @@ as well as all your go-metrics.
 
 
 ```go
-import "github.com/rcrowley/go-metrics/exp"
+import "github.com/Dieterbe/go-metrics/exp"
 
 exp.Exp(metrics.DefaultRegistry)
 ```
@@ -107,7 +109,7 @@ Installation
 ------------
 
 ```sh
-go get github.com/rcrowley/go-metrics
+go get github.com/Dieterbe/go-metrics
 ```
 
 StatHat support additionally requires their Go client:
