@@ -131,6 +131,8 @@ func (r *StandardRegistry) register(name string, i interface{}) error {
 	switch i.(type) {
 	case Counter, Gauge, GaugeFloat64, Healthcheck, Histogram, Meter, Timer:
 		r.metrics[name] = i
+	default:
+		return fmt.Errorf("value with type %T is not a metric that satisfies one of the interfaces that can be registered", i)
 	}
 	return nil
 }
