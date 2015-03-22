@@ -3,6 +3,7 @@ package metrics
 import (
 	"bufio"
 	"fmt"
+	m2 "github.com/metrics20/go-metrics20"
 	"log"
 	"net"
 	"strconv"
@@ -17,7 +18,7 @@ type GraphiteConfig struct {
 	Registry      Registry      // Registry to be exported
 	FlushInterval time.Duration // Flush interval
 	DurationUnit  time.Duration // Time conversion unit for durations
-	Prefix        string        // Prefix to be prepended to metric names
+	Prefix        string        // Prefix to be prepended to metric names. will be used for both legacy and metrics2.0
 	Percentiles   []float64     // Percentiles to export from timers and histograms
 }
 
@@ -62,48 +63,49 @@ func graphite(c *GraphiteConfig) error {
 	defer conn.Close()
 	w := bufio.NewWriter(conn)
 	c.Registry.Each(func(name string, i interface{}) {
+		k := c.Prefix + name
 		switch metric := i.(type) {
 		case Counter:
-			fmt.Fprintf(w, "%s%s.count %d %d\n", c.Prefix, name, metric.Count(), now)
+			fmt.Fprintf(w, "%s %d %d\n", m2.Counter(k, ""), metric.Count(), now)
 		case Gauge:
-			fmt.Fprintf(w, "%s%s.value %d %d\n", c.Prefix, name, metric.Value(), now)
+			fmt.Fprintf(w, "%s %d %d\n", m2.Gauge(k, ""), metric.Value(), now)
 		case GaugeFloat64:
-			fmt.Fprintf(w, "%s%s.value %f %d\n", c.Prefix, name, metric.Value(), now)
+			fmt.Fprintf(w, "%s %f %d\n", m2.Gauge(k, ""), metric.Value(), now)
 		case Histogram:
 			h := metric.Snapshot()
 			ps := h.Percentiles(c.Percentiles)
-			fmt.Fprintf(w, "%s%s.count %d %d\n", c.Prefix, name, h.Count(), now)
-			fmt.Fprintf(w, "%s%s.min %d %d\n", c.Prefix, name, h.Min(), now)
-			fmt.Fprintf(w, "%s%s.max %d %d\n", c.Prefix, name, h.Max(), now)
-			fmt.Fprintf(w, "%s%s.mean %.2f %d\n", c.Prefix, name, h.Mean(), now)
-			fmt.Fprintf(w, "%s%s.std-dev %.2f %d\n", c.Prefix, name, h.StdDev(), now)
+			fmt.Fprintf(w, "%s %d %d\n", m2.CountMetric(k, ""), h.Count(), now)
+			fmt.Fprintf(w, "%s %d %d\n", m2.Min(k, "", "", ""), h.Min(), now)
+			fmt.Fprintf(w, "%s %d %d\n", m2.Max(k, "", "", ""), h.Max(), now)
+			fmt.Fprintf(w, "%s %.2f %d\n", m2.Mean(k, "", "", ""), h.Mean(), now)
+			fmt.Fprintf(w, "%s %.2f %d\n", m2.Std(k, "", "", ""), h.StdDev(), now)
 			for psIdx, psKey := range c.Percentiles {
-				key := strings.Replace(strconv.FormatFloat(psKey*100.0, 'f', -1, 64), ".", "", 1)
-				fmt.Fprintf(w, "%s%s.%s-percentile %.2f %d\n", c.Prefix, name, key, ps[psIdx], now)
+				pct := strings.Replace(strconv.FormatFloat(psKey*100.0, 'f', -1, 64), ".", "", 1)
+				fmt.Fprintf(w, "%s %.2f %d\n", m2.Max(k, "", pct, ""), ps[psIdx], now)
 			}
 		case Meter:
 			m := metric.Snapshot()
-			fmt.Fprintf(w, "%s%s.count %d %d\n", c.Prefix, name, m.Count(), now)
-			fmt.Fprintf(w, "%s%s.one-minute %.2f %d\n", c.Prefix, name, m.Rate1(), now)
-			fmt.Fprintf(w, "%s%s.five-minute %.2f %d\n", c.Prefix, name, m.Rate5(), now)
-			fmt.Fprintf(w, "%s%s.fifteen-minute %.2f %d\n", c.Prefix, name, m.Rate15(), now)
-			fmt.Fprintf(w, "%s%s.mean %.2f %d\n", c.Prefix, name, m.RateMean(), now)
+			fmt.Fprintf(w, "%s %d %d\n", m2.CountMetric(k, ""), m.Count(), now)
+			fmt.Fprintf(w, "%s %.2f %d\n", m2.Mean(k, "1m", "", "60"), m.Rate1(), now)
+			fmt.Fprintf(w, "%s %.2f %d\n", m2.Mean(k, "5m", "", "300"), m.Rate5(), now)
+			fmt.Fprintf(w, "%s %.2f %d\n", m2.Mean(k, "15m", "", "900"), m.Rate15(), now)
+			fmt.Fprintf(w, "%s %.2f %d\n", m2.Mean(k, "start", "", "start"), m.RateMean(), now)
 		case Timer:
 			t := metric.Snapshot()
 			ps := t.Percentiles(c.Percentiles)
-			fmt.Fprintf(w, "%s%s.count %d %d\n", c.Prefix, name, t.Count(), now)
-			fmt.Fprintf(w, "%s%s.min %d %d\n", c.Prefix, name, t.Min()/int64(du), now)
-			fmt.Fprintf(w, "%s%s.max %d %d\n", c.Prefix, name, t.Max()/int64(du), now)
-			fmt.Fprintf(w, "%s%s.mean %.2f %d\n", c.Prefix, name, t.Mean()/du, now)
-			fmt.Fprintf(w, "%s%s.std-dev %.2f %d\n", c.Prefix, name, t.StdDev()/du, now)
+			fmt.Fprintf(w, "%s %d %d\n", m2.CountMetric(k, ""), t.Count(), now)
+			fmt.Fprintf(w, "%s %d %d\n", m2.Min(k, "", "", ""), t.Min()/int64(du), now)
+			fmt.Fprintf(w, "%s %d %d\n", m2.Max(k, "", "", ""), t.Max()/int64(du), now)
+			fmt.Fprintf(w, "%s %.2f %d\n", m2.Mean(k, "", "", ""), t.Mean()/du, now)
+			fmt.Fprintf(w, "%s %.2f %d\n", m2.Std(k, "", "", ""), t.StdDev()/du, now)
 			for psIdx, psKey := range c.Percentiles {
-				key := strings.Replace(strconv.FormatFloat(psKey*100.0, 'f', -1, 64), ".", "", 1)
-				fmt.Fprintf(w, "%s%s.%s-percentile %.2f %d\n", c.Prefix, name, key, ps[psIdx], now)
+				pct := strings.Replace(strconv.FormatFloat(psKey*100.0, 'f', -1, 64), ".", "", 1)
+				fmt.Fprintf(w, "%s %.2f %d\n", m2.Max(k, "", pct, ""), ps[psIdx], now)
 			}
-			fmt.Fprintf(w, "%s%s.one-minute %.2f %d\n", c.Prefix, name, t.Rate1(), now)
-			fmt.Fprintf(w, "%s%s.five-minute %.2f %d\n", c.Prefix, name, t.Rate5(), now)
-			fmt.Fprintf(w, "%s%s.fifteen-minute %.2f %d\n", c.Prefix, name, t.Rate15(), now)
-			fmt.Fprintf(w, "%s%s.mean-rate %.2f %d\n", c.Prefix, name, t.RateMean(), now)
+			fmt.Fprintf(w, "%s %.2f %d\n", m2.Mean(k, "1m", "", "60"), t.Rate1(), now)
+			fmt.Fprintf(w, "%s %.2f %d\n", m2.Mean(k, "5m", "", "300"), t.Rate5(), now)
+			fmt.Fprintf(w, "%s %.2f %d\n", m2.Mean(k, "15m", "", "900"), t.Rate15(), now)
+			fmt.Fprintf(w, "%s %.2f %d\n", m2.Mean(k, "start", "", "start"), t.RateMean(), now)
 		}
 		w.Flush()
 	})
