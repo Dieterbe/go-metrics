@@ -3,7 +3,7 @@ package metrics
 import (
 	"bufio"
 	"fmt"
-	m2 "github.com/metrics20/go-metrics20"
+	m2 "github.com/metrics20/go-metrics20/carbon20"
 	"log"
 	"net"
 	"strconv"
